@@ -1,0 +1,37 @@
+{
+  "name": "srrx",
+  "version": "1.0.1",
+  "description": "SignalR to RxJS",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "keywords": [
+    "signalr",
+    "rxjs",
+    "typescript"
+  ],
+  "homepage": "https://github.com/ErsinCabuk/srrx#readme",
+  "bugs": {
+    "url": "https://github.com/ErsinCabuk/srrx/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ErsinCabuk/srrx.git"
+  },
+  "license": "ISC",
+  "author": "Ersin Çabuk",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@microsoft/signalr": "^9.0.6",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
