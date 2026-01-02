@@ -1,100 +1,114 @@
-import { HubConnectionBuilder, HubConnectionState, type HubConnection } from "@microsoft/signalr";
+import {
+	type HubConnection,
+	HubConnectionBuilder,
+	HubConnectionState,
+} from "@microsoft/signalr";
 import { BehaviorSubject, finalize, from, Observable, tap } from "rxjs";
 import type { SrrxConfig } from "./type";
 
 class Srrx {
-    private readonly hubConnection: HubConnection
-    private readonly state$ = new BehaviorSubject<HubConnectionState>(HubConnectionState.Disconnected)
-    
-    constructor(
-        private readonly config: SrrxConfig
-    ) {
-        this.hubConnection = this.build()
-        this.registerLifecycleEvents()
-    }
+	private readonly hubConnection: HubConnection;
+	private readonly state$ = new BehaviorSubject<HubConnectionState>(
+		HubConnectionState.Disconnected,
+	);
 
-    get state(): Observable<HubConnectionState> {
-        return this.state$.asObservable()
-    }
-    
-    start(): Observable<void> {
-        this.state$.next(HubConnectionState.Connecting)
-        return from(this.hubConnection.start())
-            .pipe(
-                tap(() => {
-                    this.state$.next(HubConnectionState.Connected)
-                }),
-                finalize(() => {
-                    if (this.hubConnection.state == HubConnectionState.Connected) return;
-                    this.state$.next(HubConnectionState.Disconnected)
-                })
-            )
-    }
+	constructor(private readonly config: SrrxConfig) {
+		this.hubConnection = this.build();
+		this.registerLifecycleEvents(); 
+	}
 
-    stop() : Observable<void> {
-        return from(this.hubConnection.stop())
-    }
+	get state(): Observable<HubConnectionState> {
+		return this.state$.asObservable();
+	}
 
-    on<T>(methodName: string) : Observable<T> {        
-        return new Observable<T>(subscriber => {
-            const handler = (data: T) => subscriber.next(data)
-            
-            try {
-                this.hubConnection.on(methodName, handler)
-            } catch (error) {
-                subscriber.error(error)
-            }
+	start(): Observable<void> {
+		this.state$.next(HubConnectionState.Connecting);
+		return from(this.hubConnection.start()).pipe(
+			tap(() => {
+				this.state$.next(HubConnectionState.Connected);
+			}),
+			finalize(() => {
+				if (this.hubConnection.state === HubConnectionState.Connected) return;
+				this.state$.next(HubConnectionState.Disconnected);
+			}),
+		);
+	}
 
-            return () => {
-                this.hubConnection.off(methodName, handler)
-            }
-        })
-    }
+	stop(): Observable<void> {
+		return from(this.hubConnection.stop());
+	}
 
-    send(methodName: string, ...args: any[]) : Observable<void> {
-        return from(this.hubConnection.send(methodName, ...args))
-    }
+	on<T>(methodName: string): Observable<T> {
+		return new Observable<T>((subscriber) => {
+			const handler = (data: T) => subscriber.next(data);
 
-    invoke<T>(methodName: string, ...args: any[]) : Observable<T> {
-        return from(this.hubConnection.invoke(methodName, ...args))
-    }
+			try {
+				this.hubConnection.on(methodName, handler);
+			} catch (error) {
+				subscriber.error(error);
+			}
 
-    stream<T>(methodName: string, ...args: any[]) : Observable<T> {
-        return new Observable<T>(subscriber => {
-            const stream = this.hubConnection.stream<T>(methodName, ...args)
-            
-            const subscription = stream.subscribe({
-                next: (value) => subscriber.next(value),
-                error: (err) => subscriber.error(err),
-                complete: () => subscriber.complete()
-            })
+			return () => {
+				this.hubConnection.off(methodName, handler);
+			};
+		});
+	}
 
-            return () => {
-                subscription.dispose()
-            }
-        })
-    }
+	send(methodName: string, ...args: unknown[]): Observable<void> {
+		return from(this.hubConnection.send(methodName, ...args));
+	}
 
-    private build(): HubConnection {
-        let builder = new HubConnectionBuilder()
-            .withUrl(this.config.url, this.config.connection ?? {})
-            
-        if(this.config.autoReconnect) {
-            const policy = typeof this.config.autoReconnect == "boolean" ? undefined : this.config.autoReconnect
-            
-            builder = policy 
-                ? builder.withAutomaticReconnect(policy)
-                : builder.withAutomaticReconnect()
-        }
+	invoke<T>(methodName: string, ...args: unknown[]): Observable<T> {
+		return from(this.hubConnection.invoke(methodName, ...args));
+	}
 
-        return builder.build()
-    }
+	stream<T>(methodName: string, ...args: unknown[]): Observable<T> {
+		return new Observable<T>((subscriber) => {
+			const stream = this.hubConnection.stream<T>(methodName, ...args);
 
-    private registerLifecycleEvents() { 
-        this.hubConnection.onreconnecting(() => this.state$.next(HubConnectionState.Reconnecting))
-        this.hubConnection.onreconnected(() => this.state$.next(HubConnectionState.Connected))
-        this.hubConnection.onclose(() => this.state$.next(HubConnectionState.Disconnected))
-    }
+			const subscription = stream.subscribe({
+				next: (value) => subscriber.next(value),
+				error: (err) => subscriber.error(err),
+				complete: () => subscriber.complete(),
+			});
+
+			return () => {
+				subscription.dispose();
+			};
+		});
+	}
+
+	private build(): HubConnection {
+		let builder = new HubConnectionBuilder().withUrl(
+			this.config.url,
+			this.config.connection ?? {},
+		);
+
+		if (this.config.autoReconnect) {
+			const policy =
+				typeof this.config.autoReconnect === "boolean"
+					? undefined
+					: this.config.autoReconnect;
+
+			builder = policy
+				? builder.withAutomaticReconnect(policy)
+				: builder.withAutomaticReconnect();
+		}
+
+		return builder.build();
+	}
+
+	private registerLifecycleEvents() {
+		this.hubConnection.onreconnecting(() =>
+			this.state$.next(HubConnectionState.Reconnecting),
+		);
+		this.hubConnection.onreconnected(() =>
+			this.state$.next(HubConnectionState.Connected),
+		);
+		this.hubConnection.onclose(() =>
+			this.state$.next(HubConnectionState.Disconnected),
+		);
+	}
 }
 
 export { Srrx };
